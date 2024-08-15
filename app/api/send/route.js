@@ -1,28 +1,33 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const fromEmail = process.env.FROM_EMAIL;
+// Crée un transporteur Nodemailer avec Gmail
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER, // Ton adresse Gmail
+    pass: process.env.GMAIL_PASS, // Ton mot de passe ou mot de passe d'application si 2FA activé
+  },
+});
 
 export async function POST(req, res) {
   const { email, subject, message } = await req.json();
   console.log(email, subject, message);
+
+  // Configuration de l'email
+  const mailOptions = {
+    from: email, // Adresse de l'expéditeur (l'email du formulaire)
+    to: process.env.GMAIL_USER, // Ton adresse Gmail
+    subject: subject,
+    text: message,
+  };
+
   try {
-    const data = await resend.emails.send({
-      from: fromEmail,
-      to: [fromEmail, email],
-      subject: subject,
-      react: (
-        <>
-          <h1>{subject}</h1>
-          <p>Thank you for contacting us!</p>
-          <p>New message submitted:</p>
-          <p>{message}</p>
-        </>
-      ),
-    });
-    return NextResponse.json(data);
+    // Envoi de l'email
+    await transporter.sendMail(mailOptions);
+    return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error });
+    console.error("Error sending email:", error);
+    return NextResponse.json({ error: error.message });
   }
 }
